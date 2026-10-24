@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>梦之韵整合包 · MKD Patch — 增量更新与启动系统</title>
+<meta name="description" content="梦之韵整合包（MKD Patch）—— 面向 Minecraft 整合包的增量更新、一键启动与模组管理系统。支持 x64 / ARM64，双端架构，签名校验与云端管理。">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23e8b56f'/%3E%3Cstop offset='1' stop-color='%237c5cff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='16' fill='url(%23g)'/%3E%3Cpath d='M16 46V24l8-4 8 8 8-8 8 4v22h-8V30l-8 8-8-8v16z' fill='white'/%3E%3C/svg%3E">
+<style>
+  @font-face {
+    font-family: "HarmonyOS Sans SC";
+    src: url("assets/fonts/HarmonyOS_Sans_SC_Regular.woff2") format("woff2");
+    font-weight: 400; font-style: normal; font-display: swap;
+  }
+  @font-face {
+    font-family: "HarmonyOS Sans SC";
+    src: url("assets/fonts/HarmonyOS_Sans_SC_Bold.woff2") format("woff2");
+    font-weight: 700; font-style: normal; font-display: swap;
+  }
+  :root {
+    --ink: #1b2740;
+    --ink-2: #5a6a86;
+    --gold: #e8b56f;
+    --violet: #7c5cff;
+    --pink: #d99bb4;
+    --paper: #f6f8fc;
+    --card: rgba(255,255,255,.9);
+    --line: rgba(27,39,64,.08);
+    --shadow: 0 10px 32px rgba(20,32,56,.08);
+    --grad: linear-gradient(120deg,#1b2740 8%,#7c5cff 58%,#e8b56f);
+    --grad-text: linear-gradient(120deg,#1b2740 20%,#7c5cff 66%,#e8b56f);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { scroll-behavior:smooth; -webkit-text-size-adjust:100%; }
+  body {
+    font-family:"HarmonyOS Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    color:var(--ink); background:var(--paper); line-height:1.65;
+  }
+  img { display:block; max-width:100%; }
+  a { color:inherit; text-decoration:none; }
+  .wrap { width:100%; max-width:1160px; margin:0 auto; padding:0 20px; }
+
+  /* ── 顶部导航 ── */
+  .nav {
+    position:sticky; top:0; z-index:50;
+    background:rgba(251,247,252,.82);
+    backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--line);
+  }
+  .nav-in {
+    display:flex; align-items:center; justify-content:space-between;
+    height:60px;
+  }
+  .brand { display:flex; align-items:center; gap:10px; min-width:0; }
+  .brand img { width:34px; height:34px; border-radius:9px; }
+  .brand-name { font-weight:700; font-size:16px; letter-spacing:.3px; white-space:nowrap; }
+  .brand-sub { display:block; font-size:11px; font-weight:400; color:var(--ink-2); letter-spacing:.5px; }
+  .nav-links { display:none; }
+  .nav-cta { flex:none; }
+  .btn {
+    display:inline-flex; align-items:center; justify-content:center; gap:6px;
+    font-family:inherit; font-size:14px; font-weight:700; letter-spacing:.3px;
+    border:0; cursor:pointer; border-radius:12px; padding:11px 20px;
+    transition:transform .15s ease, box-shadow .15s ease, background .15s ease;
+  }
+  .btn:active { transform:translateY(1px); }
+  .btn-primary { color:#fff; background:var(--grad); box-shadow:0 8px 20px rgba(124,92,255,.30); }
+  .btn-primary:hover { box-shadow:0 12px 26px rgba(124,92,255,.32); }
+  .btn-ghost { color:var(--ink); background:rgba(255,255,255,.8); border:1px solid var(--line); }
+  .btn-ghost:hover { background:#fff; border-color:rgba(22,35,63,.16); }
+  .btn-lg { padding:14px 26px; font-size:15px; border-radius:14px; }
+
+  /* ── Hero ── */
+  .hero { position:relative; overflow:hidden; }
+  .hero-bg {
+    position:absolute; inset:0; z-index:0;
+    background:
+      linear-gradient(100deg, rgba(18,28,52,.78) 0%, rgba(18,28,52,.55) 42%, rgba(18,28,52,.18) 74%, rgba(18,28,52,.42) 100%),
+      url("https://media.doubao.com/space/api/box/stream/download/all_by_mount_point/BGIib4etUo8GQHxusg1cB5tAnff") center 28% / cover no-repeat;
+  }
+  .hero-in {
+    position:relative; z-index:1;
+    display:grid; gap:34px; align-items:center;
+    padding:56px 20px 60px;
+  }
+  .hero-eyebrow {
+    display:inline-flex; align-items:center; gap:8px;
+    font-size:12px; font-weight:700; color:#eaf2ff;
+    background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.28);
+    padding:5px 12px; border-radius:999px; margin-bottom:18px;
+    backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+  }
+  .eyebrow-dot { width:7px; height:7px; border-radius:50%; background:#7fd4e0; }
+  .hero h1 {
+    font-size:32px; line-height:1.22; font-weight:700; letter-spacing:.5px;
+    color:#fff;
+    background:linear-gradient(100deg,#ffffff 8%,#ffe3ec 46%,#e7d9ff 92%);
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+    margin-bottom:14px;
+  }
+  .hero h1 .cn { display:block; font-size:40px; }
+  .hero-sub { font-size:15px; color:#dbe6f6; max-width:520px; margin-bottom:26px; }
+  .hero-actions { display:flex; flex-wrap:wrap; gap:12px; align-items:center; }
+  .ver-badge {
+    display:inline-flex; align-items:center; gap:8px;
+    font-size:12px; color:#dbe6f6;
+    background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.26);
+    border-radius:10px; padding:8px 12px;
+    backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+  }
+  .ver-badge b { color:#fff; font-size:13px; }
+  .hero-note { margin-top:16px; font-size:12px; color:#c6d4ea; }
+  .hero-note code { font-family:ui-monospace,Consolas,monospace; font-size:11px; color:#f0c987; background:rgba(232,181,111,.20); padding:2px 6px; border-radius:6px; }
+  .hero-art { position:relative; }
+  .hero-art .shot {
+    border-radius:20px; overflow:hidden;
+    border:1px solid rgba(255,255,255,.6);
+    box-shadow:0 24px 60px rgba(22,35,63,.16);
+    background:#fff;
+  }
+  .hero-art .shot img { width:100%; height:auto; }
+  .art-tag {
+    position:absolute; bottom:14px; left:14px; z-index:2;
+    font-size:12px; color:#fff; font-weight:700;
+    background:rgba(22,35,63,.72); backdrop-filter:blur(8px);
+    padding:6px 12px; border-radius:999px;
+    display:flex; align-items:center; gap:7px;
+  }
+  .art-tag i { width:6px; height:6px; border-radius:50%; background:#54e3a4; }
+
+  /* ── 数据条 ── */
+  .stats { border-top:1px solid var(--line); background:rgba(255,255,255,.6); }
+  .stats-in {
+    display:grid; grid-template-columns:repeat(2,1fr); gap:18px 14px;
+    padding:22px 20px;
+  }
+  .stat { display:flex; flex-direction:column; gap:2px; }
+  .stat b { font-size:20px; font-weight:700; letter-spacing:.3px; }
+  .stat span { font-size:12px; color:var(--ink-2); }
+
+  /* ── 区块标题 ── */
+  .sec { padding:64px 20px; position:relative; }
+  .sec::before {
+    content:""; position:absolute; inset:0; z-index:0; pointer-events:none;
+  }
+  #features::before {
+    background:
+      linear-gradient(rgba(246,248,252,.95), rgba(246,248,252,.88)),
+      url("https://media.doubao.com/space/api/box/stream/download/all_by_mount_point/QZyPbwD1ro4rQixdPYscDau1n5e") center / cover no-repeat;
+  }
+  #flow::before {
+    background:
+      linear-gradient(rgba(246,248,252,.94), rgba(246,248,252,.88)),
+      url("https://media.doubao.com/space/api/box/stream/download/all_by_mount_point/JZa9bnfZroPySOxx9pAc0M4qnbf") center 30% / cover no-repeat;
+  }
+  #arch::before {
+    background:
+      linear-gradient(rgba(246,248,252,.95), rgba(246,248,252,.9)),
+      url("https://media.doubao.com/space/api/box/stream/download/all_by_mount_point/EmEbbZQAooqagZx4FEUcQaQgn8b") center / cover no-repeat;
+  }
+  #download::before {
+    background:
+      linear-gradient(rgba(255,255,255,.92), rgba(246,248,252,.88)),
+      url("https://media.doubao.com/space/api/box/stream/download/all_by_mount_point/BGIib4etUo8GQHxusg1cB5tAnff") center 40% / cover no-repeat;
+  }
+  .sec .wrap { position:relative; z-index:1; }
+  .sec-head { max-width:640px; margin-bottom:34px; }
+  .sec-kicker { font-size:12px; font-weight:700; color:var(--violet); letter-spacing:1.5px; margin-bottom:8px; }
+  .sec-head h2 { font-size:26px; line-height:1.3; font-weight:700; letter-spacing:.3px; }
+  .sec-head p { margin-top:10px; font-size:14px; color:var(--ink-2); }
+
+  /* ── 特性卡片 ── */
+  .feat-grid { display:grid; grid-template-columns:repeat(1,1fr); gap:14px; }
+  .feat {
+    background:var(--card); border:1px solid var(--line);
+    border-radius:18px; padding:22px 20px;
+    box-shadow:var(--shadow); transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .feat:hover { transform:translateY(-3px); box-shadow:0 16px 40px rgba(22,35,63,.11); }
+  .feat-ico {
+    width:42px; height:42px; border-radius:12px;
+    display:flex; align-items:center; justify-content:center; margin-bottom:14px;
+  }
+  .feat h3 { font-size:16px; font-weight:700; margin-bottom:6px; }
+  .feat p { font-size:13px; color:var(--ink-2); }
+
+  /* ── 更新流程 ── */
+  .steps { display:grid; grid-template-columns:repeat(1,1fr); gap:14px; }
+  .step {
+    background:var(--card); border:1px solid var(--line); border-radius:18px;
+    padding:22px 20px; display:flex; gap:16px; align-items:flex-start;
+  }
+  .step-no {
+    flex:none; width:38px; height:38px; border-radius:11px;
+    background:var(--grad); color:#fff; font-weight:700; font-size:16px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .step h3 { font-size:15px; font-weight:700; margin-bottom:4px; }
+  .step p { font-size:13px; color:var(--ink-2); }
+
+  /* ── 架构 ── */
+  .arch { display:grid; grid-template-columns:repeat(1,1fr); gap:14px; }
+  .arch-node {
+    background:var(--card); border:1px solid var(--line); border-radius:18px;
+    padding:22px 20px; text-align:left;
+  }
+  .arch-node h3 { font-size:15px; font-weight:700; margin-bottom:4px; }
+  .arch-node p { font-size:13px; color:var(--ink-2); }
+  .arch-node ul { list-style:none; margin-top:10px; display:grid; gap:6px; }
+  .arch-node li {
+    font-size:12.5px; color:var(--ink-2); display:flex; gap:8px; align-items:flex-start;
+  }
+  .arch-node li::before { content:""; flex:none; width:5px; height:5px; border-radius:50%; background:var(--gold); margin-top:7px; }
+  .arch-link { text-align:center; font-size:12px; color:var(--ink-2); padding:2px 0; }
+  .arch-link::before { content:"⇅"; margin-right:6px; color:var(--violet); font-weight:700; }
+
+  /* ── 下载 ── */
+  .dl-grid { display:grid; grid-template-columns:repeat(1,1fr); gap:16px; }
+  .dl-card {
+    position:relative;
+    background:var(--card); border:1px solid var(--line); border-radius:20px;
+    padding:26px 22px; box-shadow:var(--shadow);
+    transition:opacity .3s, box-shadow .3s;
+  }
+  .arch-reco {
+    border-color:rgba(232,181,111,.65);
+    box-shadow:0 0 0 1px rgba(232,181,111,.35), 0 14px 38px rgba(20,32,56,.12);
+  }
+  .arch-reco::after {
+    content:"\2713 为你推荐";
+    position:absolute; top:-11px; right:16px; z-index:2;
+    background:linear-gradient(120deg,#7c5cff,#e8b56f); color:#fff;
+    font-size:11px; font-weight:700; letter-spacing:.5px;
+    padding:5px 12px; border-radius:999px;
+    box-shadow:0 4px 12px rgba(124,92,255,.35);
+  }
+  .arch-reco .arch-tag {
+    color:#fff !important;
+    background:linear-gradient(120deg,#7c5cff,#e8b56f) !important;
+    border-color:transparent !important;
+  }
+  .arch-muted { opacity:.5; }
+  .btn.arch-muted { opacity:.45; }
+  .reco-pill {
+    display:inline-flex; align-items:center; margin-left:8px;
+    font-size:11px; font-weight:700; color:#7c5cff;
+    background:#fff; border-radius:999px; padding:2px 9px;
+    box-shadow:0 2px 8px rgba(0,0,0,.12);
+  }
+  .arch-notice {
+    margin:0 auto 20px; max-width:760px; text-align:center;
+    font-size:13px; color:var(--ink-2);
+    background:rgba(124,92,255,.08); border:1px solid rgba(124,92,255,.18);
+    border-radius:10px; padding:10px 14px;
+  }
+  .arch-notice b { color:#7c5cff; font-weight:700; }
+
+  .dl-card .arch-tag {
+    display:inline-flex; align-items:center; gap:7px;
+    font-size:12px; font-weight:700; padding:5px 12px; border-radius:999px; margin-bottom:14px;
+  }
+  .tag-x64 { color:var(--gold); background:rgba(232,181,111,.14); border:1px solid rgba(232,181,111,.30); }
+  .tag-arm { color:var(--violet); background:rgba(124,92,255,.1); border:1px solid rgba(124,92,255,.2); }
+  .dl-card h3 { font-size:18px; font-weight:700; margin-bottom:4px; }
+  .dl-card .dl-desc { font-size:13px; color:var(--ink-2); margin-bottom:16px; }
+  .dl-files { display:grid; gap:10px; margin-bottom:18px; }
+  .dl-file {
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    border:1px solid var(--line); border-radius:12px; padding:12px 14px;
+    background:rgba(255,255,255,.7); transition:border-color .15s ease, background .15s ease;
+  }
+  .dl-file:hover { border-color:rgba(124,92,255,.35); background:#fff; }
+  .dl-file .f-name { font-size:13px; font-weight:600; word-break:break-all; }
+  .dl-file .f-meta { font-size:11.5px; color:var(--ink-2); white-space:nowrap; }
+  .dl-file .f-go { color:var(--gold); font-weight:700; font-size:14px; flex:none; }
+  .dl-hint { font-size:12px; color:var(--ink-2); }
+
+  /* ── 安全 ── */
+  .sec-list { display:grid; gap:12px; }
+  .sec-row {
+    display:flex; gap:14px; align-items:flex-start;
+    background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px;
+  }
+  .sec-row h3 { font-size:15px; font-weight:700; margin-bottom:3px; }
+  .sec-row p { font-size:13px; color:var(--ink-2); }
+  .sec-row code {
+    font-family:ui-monospace,Consolas,monospace; font-size:11px; color:var(--gold);
+    background:rgba(232,181,111,.12); padding:2px 6px; border-radius:6px; word-break:break-all;
+  }
+
+  /* ── 支持 ── */
+  .support-grid { display:grid; grid-template-columns:repeat(1,1fr); gap:14px; }
+  .support-card {
+    background:var(--card); border:1px solid var(--line); border-radius:18px;
+    padding:22px 20px; display:flex; flex-direction:column; gap:8px;
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .support-card:hover { transform:translateY(-2px); box-shadow:0 14px 34px rgba(22,35,63,.1); }
+  .support-card h3 { font-size:15px; font-weight:700; }
+  .support-card p { font-size:13px; color:var(--ink-2); }
+  .support-card .go { color:var(--gold); font-weight:700; font-size:13px; }
+
+  /* ── 页脚 ── */
+  .footer { border-top:1px solid var(--line); background:rgba(255,255,255,.6); }
+  .footer-in { padding:30px 20px 34px; display:flex; flex-direction:column; gap:10px; }
+  .footer .fbrand { display:flex; align-items:center; gap:9px; font-weight:700; font-size:14px; }
+  .footer .fbrand img { width:26px; height:26px; border-radius:7px; }
+  .footer p { font-size:12px; color:var(--ink-2); }
+  .footer .fver { font-size:11px; color:var(--ink-2); opacity:.8; }
+
+  /* ── 桌面断点 ── */
+  @media (min-width:768px) {
+    .nav-links { display:flex; gap:26px; align-items:center; }
+    .nav-links a { font-size:14px; color:var(--ink-2); font-weight:500; }
+    .nav-links a:hover { color:var(--ink); }
+    .nav-links a.on { color:var(--gold); font-weight:700; }
+    .hero-in { grid-template-columns:1.05fr .95fr; gap:46px; padding:72px 20px 76px; }
+    .hero h1 { font-size:40px; }
+    .hero h1 .cn { font-size:52px; }
+    .hero-sub { font-size:16px; }
+    .stats-in { grid-template-columns:repeat(4,1fr); padding:26px 20px; }
+    .sec { padding:84px 20px; }
+    .sec-head h2 { font-size:32px; }
+    .feat-grid { grid-template-columns:repeat(3,1fr); gap:18px; }
+    .steps { grid-template-columns:repeat(4,1fr); gap:16px; }
+    .step { flex-direction:column; }
+    .arch { grid-template-columns:repeat(3,1fr); gap:0; }
+    .arch .arch-link { display:flex; align-items:center; justify-content:center; }
+    .dl-grid { grid-template-columns:repeat(2,1fr); gap:18px; }
+    .support-grid { grid-template-columns:repeat(3,1fr); gap:16px; }
+    .footer-in { flex-direction:row; align-items:center; justify-content:space-between; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════ 顶部导航 ═══════ -->
+<header class="nav">
+  <div class="wrap nav-in">
+    <a class="brand" href="#top">
+      <img src="https://media.doubao.com/space/api/box/stream/download/all_by_mount_point/MFZybbi9doc5g5xlVDzcFWtfntf" alt="梦之韵整合包图标">
+      <span class="brand-name">梦之韵整合包<span class="brand-sub">MKD Patch Updater</span></span>
+    </a>
+    <nav class="nav-links" id="navLinks">
+      <a href="#features">功能</a>
+      <a href="#flow">更新机制</a>
+      <a href="#arch">架构</a>
+      <a href="#download">下载</a>
+      <a href="#security">安全</a>
+      <a href="#support">支持</a>
+    </nav>
+    <div class="nav-cta"><a class="btn btn-primary" href="#download">下载</a></div>
+  </div>
+</header>
+
+<main id="top">
+
+<!-- ═══════ Hero ═══════ -->
+<section class="hero">
+  <div class="hero-bg" aria-hidden="true"></div>
+  <div class="wrap hero-in">
+    <div>
+      <span class="hero-eyebrow"><i class="eyebrow-dot"></i>面向 Minecraft 整合包的更新与启动系统</span>
+      <h1><span class="cn">梦之韵整合包</span>MKD Patch</h1>
+      <p class="hero-sub">只下载变化的内容，对齐服务器版本，一键启动游戏。模组、版本与更新全部可视化管理，x64 与 ARM64 原生支持。</p>
+      <div class="hero-actions">
+        <a class="btn btn-primary btn-lg" id="dlHeroX64" href="https://obj.camzy.uno/release/MKD-Patch_261018_x86_020.exe" download>下载 x64 版</a>
+        <a class="btn btn-ghost btn-lg" id="dlHeroArm" href="https://obj.camzy.uno/release/MKD-Patch_261018_arm64_020.exe" download>下载 ARM64 版</a>
+        <span class="ver-badge">更新器 <b id="verHero">v0.1.0.020</b></span>
+        <span class="ver-badge">整合包 <b id="packVerHero">v1.3.0-r6</b></span>
+      </div>
+      <p class="hero-note">安装包已签名 · 校验指纹 <code id="fpHero">3E15 5E06 8B13 3DEA 9E1A 80C2 48E8 79F9</code></p>
+    </div>
+    <div class="hero-art">
+      <div class="shot"><img src="https://media.doubao.com/space/api/box/stream/download/all_by_mount_point/QNrRbK2HZoqYv7xLn0scOiACnif" alt="梦之韵整合包启动器界面"></div>
+      <span class="art-tag"><i></i>MKD Patch Engine 0.1.0</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 数据条 ═══════ -->
+<section class="stats">
+  <div class="wrap stats-in">
+    <div class="stat"><b id="statVer">0.1.0.020</b><span>更新器版本</span></div>
+    <div class="stat"><b id="statPack">1.3.0-r6</b><span>整合包版本</span></div>
+    <div class="stat"><b>x64 + ARM64</b><span>双架构支持</span></div>
+    <div class="stat"><b id="statSync">实时</b><span>版本走云端 API</span></div>
+  </div>
+</section>
+
+<!-- ═══════ 功能 ═══════ -->
+<section class="sec" id="features">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-kicker">FEATURES</div>
+      <h2>把整合包的日常，全部放进一个启动器</h2>
+      <p>从更新到启动，从模组到版本，玩家端与管理端各自闭环，又通过云端清单实时同步。</p>
+    </div>
+    <div class="feat-grid">
+      <div class="feat">
+        <div class="feat-ico" style="background:rgba(124,92,255,.10)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#7c5cff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h4l3-8 4 16 3-8h4"/></svg></div>
+        <h3>一键启动游戏</h3>
+        <p>自动探测 Java 与游戏版本，按你的内存与分辨率预设直接拉起 Minecraft，无需手动配置。</p>
+      </div>
+      <div class="feat">
+        <div class="feat-ico" style="background:rgba(124,92,255,.12)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#7c5cff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg></div>
+        <h3>模组可视管理</h3>
+        <p>整合包内的模组逐个开关，可选内容分组启停，改动立即生效，更新不会误删你的文件。</p>
+      </div>
+      <div class="feat">
+        <div class="feat-ico" style="background:rgba(242,169,196,.28)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#d4698d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M5 10l7-7 7 7M5 21h14"/></svg></div>
+        <h3>版本对齐服务器</h3>
+        <p>一键将本地内容对齐到服务器最新版本，缺失、过期、多余的差异一目了然。</p>
+      </div>
+      <div class="feat">
+        <div class="feat-ico" style="background:rgba(124,92,255,.10)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#7c5cff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
+        <h3>增量更新</h3>
+        <p>逐文件对比清单，只下载变化内容，多线程拉取、事务安装，中断可续传可回滚。</p>
+      </div>
+      <div class="feat">
+        <div class="feat-ico" style="background:rgba(124,92,255,.12)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#7c5cff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M4 9h16M9 9v11M15 9v11"/></svg></div>
+        <h3>x64 / ARM64 双架构</h3>
+        <p>原生支持 Intel/AMD 与 ARM（骁龙等）Windows 设备，安装包按你的架构自动匹配。</p>
+      </div>
+      <div class="feat">
+        <div class="feat-ico" style="background:rgba(242,169,196,.28)"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#d4698d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 100 20 10 10 0 000-20z"/><path d="M2 12h20M12 2c3 3 3 17 0 20M12 2c-3 3-3 17 0 20"/></svg></div>
+        <h3>云端统一管控</h3>
+        <p>公告推送、模组库下发、玩家统计实时可见；管理端原生窗口直达云端，不依赖浏览器。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 更新机制 ═══════ -->
+<section class="sec" id="flow">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-kicker">HOW IT WORKS</div>
+      <h2>一次更新，四步完成</h2>
+      <p>从检查到安装全程可追踪，任何一步失败都能安全回滚，不会把整合包留在半更新状态。</p>
+    </div>
+    <div class="steps">
+      <div class="step"><div class="step-no">1</div><div><h3>检查更新</h3><p>启动时自动向云端报告本地版本，云端实时比对并判断是否需要更新。</p></div></div>
+      <div class="step"><div class="step-no">2</div><div><h3>增量对比</h3><p>逐文件比对签名清单，只下载变化、新增与删除项，差量一目了然。</p></div></div>
+      <div class="step"><div class="step-no">3</div><div><h3>事务安装</h3><p>多线程下载后统一落盘，先备份再替换，安装过程中断可续传。</p></div></div>
+      <div class="step"><div class="step-no">4</div><div><h3>故障恢复</h3><p>安装失败自动回滚到上一个可用版本，本地自管文件不会被覆盖。</p></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 架构 ═══════ -->
+<section class="sec" id="arch">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-kicker">ARCHITECTURE</div>
+      <h2>两端一云，各自闭环</h2>
+      <p>玩家端负责更新与启动，管理端负责发布与管控，云端清单签名验签，链路全程 HTTPS。</p>
+    </div>
+    <div class="arch">
+      <div class="arch-node">
+        <h3>玩家端</h3>
+        <p>Vue 3 + Tauri 原生窗口 · Java 更新引擎</p>
+        <ul>
+          <li>一键启动 / 模组 / 版本管理</li>
+          <li>增量更新与故障恢复</li>
+          <li>启动即上报版本，自动更新提醒</li>
+        </ul>
+      </div>
+      <div class="arch-link" aria-hidden="true">HTTPS + Ed25519 验签</div>
+      <div class="arch-node">
+        <h3>云端</h3>
+        <p>Cloudflare Worker · R2 对象存储</p>
+        <ul>
+          <li>签名发布清单与双架构安装包</li>
+          <li>公告 / 模组库 / 玩家统计接口</li>
+          <li>DoH 域名解析，防 DNS 劫持</li>
+        </ul>
+      </div>
+      <div class="arch-link" aria-hidden="true">CLI / API 发布</div>
+      <div class="arch-node">
+        <h3>管理端</h3>
+        <p>Vue 3 管理台 · Java 管理核心 · Tauri 原生窗口</p>
+        <ul>
+          <li>公告推送与模组库维护</li>
+          <li>玩家在线统计</li>
+          <li>自更新随发布自动升级</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 下载 ═══════ -->
+<section class="sec" id="download">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-kicker">DOWNLOAD</div>
+      <h2>按你的设备架构下载</h2>
+      <p>安装包自动携带 Java 运行时，装完即用。ARM（骁龙等）设备请选择 ARM64 版本。</p>
+    </div>
+    <div id="archNotice" class="arch-notice" style="display:none"></div>
+    <div class="dl-grid">
+      <div class="dl-card">
+        <span class="arch-tag tag-x64">x64 · Intel / AMD</span>
+        <h3>Windows 64 位</h3>
+        <p class="dl-desc">适用于绝大多数台式机与笔记本。</p>
+        <div class="dl-files">
+          <a class="dl-file" id="dlX64Exe" href="https://obj.camzy.uno/release/MKD-Patch_261018_x86_020.exe" download>
+            <span><span class="f-name" id="fX64Exe">MKD-Patch_x64_020.exe</span><br><span class="f-meta" id="mX64Exe">安装程序 · 自带 Java 运行时</span></span>
+            <span class="f-go">下载 →</span>
+          </a>
+          <a class="dl-file" id="dlX64Msi" href="https://obj.camzy.uno/release/MKD-Patch_261018_x86_020.msi" download>
+            <span><span class="f-name" id="fX64Msi">MKD-Patch_x64_020.msi</span><br><span class="f-meta" id="mX64Msi">MSI 安装包 · 便于批量部署</span></span>
+            <span class="f-go">下载 →</span>
+          </a>
+        </div>
+        <p class="dl-hint">直链由 Cloudflare 分发 · 支持断点续传 · <span id="dlUpdated">最后更新 2026-10-18</span></p>
+      </div>
+      <div class="dl-card">
+        <span class="arch-tag tag-arm">ARM64 · 骁龙 / ARM</span>
+        <h3>Windows ARM64</h3>
+        <p class="dl-desc">适用于骁龙、ARM 处理器的 Windows 设备。</p>
+        <div class="dl-files">
+          <a class="dl-file" id="dlArmExe" href="https://obj.camzy.uno/release/MKD-Patch_261018_arm64_020.exe" download>
+            <span><span class="f-name" id="fArmExe">MKD-Patch_arm64_020.exe</span><br><span class="f-meta" id="mArmExe">安装程序 · 自带 Java 运行时</span></span>
+            <span class="f-go">下载 →</span>
+          </a>
+          <a class="dl-file" id="dlArmMsi" href="https://obj.camzy.uno/release/MKD-Patch_261018_arm64_020.msi" download>
+            <span><span class="f-name" id="fArmMsi">MKD-Patch_arm64_020.msi</span><br><span class="f-meta" id="mArmMsi">MSI 安装包 · 便于批量部署</span></span>
+            <span class="f-go">下载 →</span>
+          </a>
+        </div>
+        <p class="dl-hint">ARM 设备请勿安装 x64 版本</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 安全 ═══════ -->
+<section class="sec" id="security">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-kicker">SECURITY</div>
+      <h2>每一层都签名，每一次都可核验</h2>
+      <p>传输、清单、安装包三层防护，玩家可随时核对发布者指纹。</p>
+    </div>
+    <div class="sec-list">
+      <div class="sec-row">
+        <div style="flex:none;width:40px;height:40px;border-radius:11px;background:rgba(124,92,255,.10);display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#7c5cff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg></div>
+        <div><h3>发布清单 Ed25519 验签</h3><p>云端发布清单携带签名，玩家端每次更新前校验签名，防止清单被篡改。</p></div>
+      </div>
+      <div class="sec-row">
+        <div style="flex:none;width:40px;height:40px;border-radius:11px;background:rgba(124,92,255,.12);display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#7c5cff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+        <div><h3>安装包 Authenticode 签名</h3><p>所有安装包均签名，发布者指纹：<code>3E15 5E06 8B13 3DEA 9E1A 80C2 48E8 79F9 5B72 7767 E138 5DD4 8CFC FF03 7D10 D871</code></p></div>
+      </div>
+      <div class="sec-row">
+        <div style="flex:none;width:40px;height:40px;border-radius:11px;background:rgba(242,169,196,.28);display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#d4698d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></svg></div>
+        <div><h3>DoH 防 DNS 劫持</h3><p>更新域名走 DNS over HTTPS 解析，公网环境同样不被劫持、不串改下载源。</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ 支持 ═══════ -->
+<section class="sec" id="support">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-kicker">SUPPORT</div>
+      <h2>遇到问题？三条路都开着</h2>
+    </div>
+    <div class="support-grid">
+      <a class="support-card" href="https://github.com/maoxinhe/cmy-patch" target="_blank" rel="noopener">
+        <h3>GitHub 源码</h3>
+        <p>项目源码、Roadmap 与构建产物都在这里。</p>
+        <span class="go">前往仓库 →</span>
+      </a>
+      <a class="support-card" href="https://obj.camzy.uno/api/announcements" target="_blank" rel="noopener">
+        <h3>更新公告</h3>
+        <p>查看服主发布的最新公告与版本动态。</p>
+        <span class="go">查看公告 →</span>
+      </a>
+      <a class="support-card" href="https://fk.camzy.uno" target="_blank" rel="noopener">
+        <h3>反馈中心</h3>
+        <p>安装、更新、模组、报错，一键提交反馈。</p>
+        <span class="go">提交反馈 →</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ═══════ 页脚 ═══════ -->
+<footer class="footer">
+  <div class="wrap footer-in">
+    <div class="fbrand">
+      <img src="https://media.doubao.com/space/api/box/stream/download/all_by_mount_point/MFZybbi9doc5g5xlVDzcFWtfntf" alt="">
+      <span>梦之韵整合包 · MKD Patch</span>
+    </div>
+    <p>© 2026 梦之韵 · MKD Patch Updater — 为整合包而生的增量更新与启动系统</p>
+    <span class="fver" id="footVer">更新器 0.1.0.020 · 整合包 1.3.0-r6</span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ── 云端版本动态同步 ──
+     两个接口，全部实时：
+     1. GET /latest/player-version        → 更新器版本 + 双架构下载文件/大小/更新时间
+     2. GET /latest/manifest (signed)     → 整合包版本 displayVersion + sequence（解析 CMY-PATCH-SIGNED-1 三行格式）
+   */
+  var FALLBACK = {
+    version: "0.1.0.020",
+    packVer: "1.3.0",
+    packSeq: 6,
+    x86Url: "https://obj.camzy.uno/release/MKD-Patch_261018_x86_020.exe",
+    armUrl: "https://obj.camzy.uno/release/MKD-Patch_261018_arm64_020.exe"
+  };
+
+  function setText(id, val) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = val;
+  }
+
+  function fmtBytes(b) {
+    var n = Number(b);
+    if (!n) return "";
+    return (n / 1048576).toFixed(1) + " MB";
+  }
+
+  function fmtDate(s) {
+    if (!s) return "";
+    var d = new Date(s);
+    if (isNaN(d.getTime())) return s;
+    var p = function (x) { return (x < 10 ? "0" : "") + x; };
+    return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+  }
+
+  function stamp(fn, msi) {
+    /* 清单只登记 .msi；.exe 同名替换扩展名（发布流程同批产出） */
+    return msi.replace(/\.msi$/i, fn);
+  }
+
+  /* 1) 更新器版本 + 下载区全动态 */
+  function fetchLatest() {
+    if (typeof fetch !== "function") return;
+    fetch("https://obj.camzy.uno/latest/player-version", { cache: "no-store" })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error("bad status")); })
+      .then(function (d) {
+        var v = (d && d.version) ? "0.1.0." + d.version : null;
+        var x = d && d.arch && d.arch.x86_64;
+        var a = d && d.arch && d.arch.aarch64;
+        var updated = d && d.updatedAt;
+        var ver = d && d.version;
+        if (v) {
+          setText("verHero", "v" + v);
+          setText("statVer", v);
+        }
+        /* x64 卡：文件名 / 直链 / 大小全来自清单 */
+        if (x && x.file && x.url) {
+          setText("fX64Msi", x.file);
+          setText("mX64Msi", "MSI 安装包 · 约 " + fmtBytes(x.size));
+          document.getElementById("dlX64Msi").href = x.url;
+          var xe = stamp(".exe", x.file);
+          setText("fX64Exe", xe);
+          document.getElementById("dlX64Exe").href = x.url.replace(/\.msi$/i, ".exe");
+          document.getElementById("dlHeroX64").href = x.url.replace(/\.msi$/i, ".exe");
+        }
+        /* ARM64 卡 */
+        if (a && a.file && a.url) {
+          setText("fArmMsi", a.file);
+          setText("mArmMsi", "MSI 安装包 · 约 " + fmtBytes(a.size));
+          document.getElementById("dlArmMsi").href = a.url;
+          setText("fArmExe", stamp(".exe", a.file));
+          document.getElementById("dlArmExe").href = a.url.replace(/\.msi$/i, ".exe");
+          document.getElementById("dlHeroArm").href = a.url.replace(/\.msi$/i, ".exe");
+        }
+        if (updated) setText("dlUpdated", "最后更新 " + fmtDate(updated));
+        setText("footVer", "更新器 " + (v || FALLBACK.version) + " · 整合包 " + (window.__packVer || FALLBACK.packVer));
+      })
+      .catch(function () { /* 网络不可达时保留固化直链 */ });
+  }
+
+  /* 2) 整合包版本：解析 CMY-PATCH-SIGNED-1\n<签名>\n<JSON content> */
+  function fetchPackVersion() {
+    if (typeof fetch !== "function") return;
+    fetch("https://update.camzy.uno/latest/manifest", { cache: "no-store" })
+      .then(function (r) { return r.ok ? r.text() : Promise.reject(new Error("bad status")); })
+      .then(function (txt) {
+        var lines = txt.split("\n");
+        var jsonPart = lines.length >= 3 ? lines.slice(2).join("\n") : txt;
+        var m = JSON.parse(jsonPart);
+        var dv = m && m.displayVersion;
+        var seq = m && m.sequence;
+        if (!dv) return;
+        var pack = String(dv) + (seq != null ? "-r" + seq : "");
+        window.__packVer = pack;
+        setText("packVerHero", "v" + pack);
+        setText("statPack", pack);
+        setText("statSync", "实时");
+        var fv = document.getElementById("footVer");
+        if (fv) fv.textContent = "更新器 " + (document.getElementById("statVer").textContent || FALLBACK.version) + " · 整合包 " + pack;
+      })
+      .catch(function () { /* 拉不到时保留固化整合包版本 */ });
+  }
+
+  fetchLatest();
+  fetchPackVersion();
+
+  /* 导航滚动高亮 */
+  var links = Array.prototype.slice.call(document.querySelectorAll("#navLinks a"));
+  var map = {};
+  links.forEach(function (a) {
+    var id = (a.getAttribute("href") || "").slice(1);
+    var sec = document.getElementById(id);
+    if (sec) map[id] = { link: a, sec: sec };
+  });
+  var ticking = false;
+  function onScroll() {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(function () {
+      var y = window.scrollY + 120;
+      var cur = "top";
+      Object.keys(map).forEach(function (id) {
+        if (map[id].sec.offsetTop <= y) cur = id;
+      });
+      links.forEach(function (a) { a.classList.remove("on"); });
+      if (map[cur] && map[cur].link) map[cur].link.classList.add("on");
+      ticking = false;
+    });
+  }
+  window.addEventListener("scroll", onScroll, { passive: true });
+  onScroll();
+})();
+</script>
+<script>
+(function () {
+  function byUA() {
+    var ua = navigator.userAgent;
+    var isWin = /Windows/i.test(ua);
+    if (!isWin) return null;
+    if (/arm64|aarch64|armv8/i.test(ua)) return 'arm64';
+    if (/x86_64|win64|wow64|amd64/i.test(ua)) return 'x86';
+    return null;
+  }
+  function detect() {
+    return new Promise(function (resolve) {
+      var d = navigator.userAgentData;
+      if (d && d.getHighEntropyValues) {
+        d.getHighEntropyValues(['architecture']).then(function (v) {
+          var a = String(v.architecture || '').toLowerCase();
+          var arch = null;
+          if (a.indexOf('arm') > -1) arch = 'arm64';
+          else if (a.indexOf('x86') > -1 || a.indexOf('intel') > -1 || a.indexOf('amd') > -1) arch = 'x86';
+          resolve(arch || byUA());
+        })['catch'](function () { resolve(byUA()); });
+      } else {
+        resolve(byUA());
+      }
+    });
+  }
+  detect().then(function (arch) {
+    if (!arch) return;
+    var reco, label;
+    if (arch === 'x86') { reco = 'x64'; label = 'x64 · Intel / AMD'; }
+    else { reco = 'arm64'; label = 'ARM64 · 骁龙 / ARM'; }
+    var cards = document.querySelectorAll('.dl-card');
+    if (cards.length === 2) {
+      var c0 = cards[0], c1 = cards[1];
+      if (reco === 'x64') { c0.classList.add('arch-reco'); c1.classList.add('arch-muted'); }
+      else { c1.classList.add('arch-reco'); c0.classList.add('arch-muted'); }
+    }
+    var recoBtn = document.getElementById(reco === 'x64' ? 'dlHeroX64' : 'dlHeroArm');
+    var otherBtn = document.getElementById(reco === 'x64' ? 'dlHeroArm' : 'dlHeroX64');
+    if (recoBtn) {
+      var pill = document.createElement('span');
+      pill.className = 'reco-pill';
+      pill.textContent = '推荐';
+      recoBtn.appendChild(pill);
+    }
+    if (otherBtn) otherBtn.classList.add('arch-muted');
+    var notice = document.getElementById('archNotice');
+    if (notice) {
+      notice.style.display = 'block';
+      notice.innerHTML = '已识别你的设备架构：<b>' + label + '</b>，为你推荐对应版本。';
+    }
+  });
+})();
+</script>
+</body>
+</html>
